@@ -52,6 +52,7 @@
       border-radius: 12px;
       background: #252525;
       line-height: 1.6;
+      white-space: pre-line;
       overflow-wrap: anywhere;
     }
 
@@ -76,13 +77,34 @@
     }
 
     .secondary { background: #292929; }
-
-    .hidden { display: none; }
+    .hidden { display: none !important; }
 
     .footer {
       margin-top: 22px;
       color: #888;
       font-size: 12px;
+    }
+
+    .section-title {
+      margin: 22px 0 8px;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    .note {
+      margin-top: 10px;
+      color: #999;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    #tiktokFrame {
+      width: 100%;
+      height: 560px;
+      margin-top: 14px;
+      border: 1px solid #444;
+      border-radius: 12px;
+      background: #fff;
     }
   </style>
 </head>
@@ -99,11 +121,49 @@
       Connecting securely to TikTok Access Control...
     </div>
 
-    <button class="button" id="requestButton" onclick="requestAccess()">
+    <div id="approvedOptions" class="hidden">
+      <p class="section-title">Your TikTok access is ready</p>
+
+      <button class="button" id="insideButton"
+              onclick="openTikTokInside()">
+        Open TikTok Inside Mini App
+      </button>
+
+      <button class="button secondary" id="phoneButton"
+              onclick="openTikTokApp()">
+        Open TikTok App on Phone
+      </button>
+
+      <p class="note">
+        If TikTok cannot load inside this Mini App, use the phone app option.
+        TikTok may restrict embedded viewing.
+      </p>
+
+      <div id="insideContainer" class="hidden">
+        <iframe
+          id="tiktokFrame"
+          title="TikTok"
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowfullscreen
+          referrerpolicy="strict-origin-when-cross-origin">
+        </iframe>
+
+        <a class="button secondary"
+           href="https://www.tiktok.com/"
+           target="_blank"
+           rel="noopener noreferrer">
+          Open TikTok in Browser
+        </a>
+      </div>
+    </div>
+
+    <button class="button hidden" id="requestButton"
+            onclick="requestAccess()">
       Request Access
     </button>
 
-    <button class="button secondary" id="refreshButton" onclick="checkStatus()">
+    <button class="button secondary" id="refreshButton"
+            onclick="checkStatus()">
       Check Access Status
     </button>
 
@@ -122,10 +182,18 @@
     const WORKER_URL =
       "https://tiktok-access-control.rich0810755.workers.dev";
 
+    const TIKTOK_WEB_URL = "https://www.tiktok.com/";
+    const TIKTOK_APP_URL = "https://www.tiktok.com/";
+
     const tg = window.Telegram?.WebApp;
     const statusBox = document.getElementById("status");
     const requestButton = document.getElementById("requestButton");
     const refreshButton = document.getElementById("refreshButton");
+    const approvedOptions = document.getElementById("approvedOptions");
+    const insideContainer = document.getElementById("insideContainer");
+    const insideButton = document.getElementById("insideButton");
+    const phoneButton = document.getElementById("phoneButton");
+    const tiktokFrame = document.getElementById("tiktokFrame");
 
     if (tg) {
       tg.ready();
@@ -169,10 +237,20 @@
     }
 
     function displayResult(data) {
-      if (data.status === "approved") {
+      const approved = data.status === "approved";
+
+      approvedOptions.classList.toggle("hidden", !approved);
+
+      if (!approved) {
+        insideContainer.classList.add("hidden");
+        tiktokFrame.src = "about:blank";
+      }
+
+      if (approved) {
         showStatus(
           "✅ ACCESS GRANTED\n\n" +
-          "Welcome! Your TikTok access has been approved."
+          "Welcome! Your TikTok access has been approved.\n" +
+          "Choose how you want to open TikTok below."
         );
         requestButton.classList.add("hidden");
       } else if (data.status === "pending") {
@@ -183,8 +261,9 @@
         requestButton.classList.remove("hidden");
       } else {
         showStatus(
-          "🔒 ACCESS NOT APPROVED\n\n" +
-          "Submit an access request or contact support for assistance."
+          "🔒 ACCESS DENIED\n\n" +
+          "Your access has not been approved. You can request access, " +
+          "check your status, or contact support on WhatsApp."
         );
         requestButton.classList.remove("hidden");
       }
@@ -223,6 +302,35 @@
         showStatus(error.message);
       } finally {
         setLoading(false);
+      }
+    }
+
+    function openTikTokInside() {
+      insideContainer.classList.remove("hidden");
+      showStatus(
+        "TikTok is opening inside the Mini App. " +
+        "If the content does not load, TikTok may block embedded viewing. " +
+        "Use Open TikTok App on Phone or Open TikTok in Browser."
+      );
+
+      if (!tiktokFrame.src || tiktokFrame.src === "about:blank") {
+        tiktokFrame.src = TIKTOK_WEB_URL;
+      }
+
+      insideContainer.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
+
+    function openTikTokApp() {
+      // Open the TikTok website. On supported phones, app-link handling
+      // may transfer the user to the installed TikTok app.
+      // A website fallback remains available below.
+      const opened = window.open(TIKTOK_APP_URL, "_blank");
+
+      if (!opened) {
+        window.location.href = TIKTOK_APP_URL;
       }
     }
 
